@@ -28,3 +28,49 @@ module.exports = Object.freeze({
   },  
 });
 
+
+
+// function getTodayMatches 
+// `${fetchData.url}t_1_${champ.num}_${champ.id}_2_en_1`
+
+// function getFixturesAndScores
+// `fetchData.baseUrl}football/${country}/${league}`
+
+// function getMatchesLogo
+// `${fetchData.url}dc_1_${id}`
+    
+// function getMatchesInfo
+// `${fetchData.url}df_sui_1_${id}`
+      
+// function getMatchesOdds
+// `${fetchData.url}df_dos_1_${id}_`
+
+        
+// function getHeadToHead
+// `${fetchData.url}df_hh_1_${id}`
+          
+// function getMatchSummary(lastMatchesId) {
+// `${fetchData.url}dc_1_${id}`
+            
+// function getBaseStatsAndScoreInfo
+// `${fetchData.url}df_sui_1_${id}`
+              
+// function getDetailedStats
+// `${fetchData.url}df_st_1_${id}`
+                
+                
+// function getMatchesResult
+// `${fetchData.url}tr_1_${num}_${id}_${season}_${page}_2_en_1`                               
+
+// function getStandings
+// `${fetchData.url}to_${champ.standingsId}_${num}`       
+                    
+// function getResultData
+// `${fetchData.url}tr_1_${num}_${id}_${season}_${page}_2_en_1`
+                      
+// function getMatchesTimeLineDetailed
+// `${fetchData.url}df_lc_1_${id}`
+                        
+// function getLeagueTeams
+// `${fetchData.url}tr_1_${num}_${id}_${season-n}_1_2_en_1`
+// `${fetchData.url}to_${id}_1`            

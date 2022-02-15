@@ -10,7 +10,9 @@
   "nodemonConfig": {
     "ignore": [
       "data/stats/referee/*.json",
-      "data/results/current/*.json"
+      "data/stats/fouls/*.json",
+      "data/results/current/*.json",
+      "parse/locals.js"
     ]
   },
   "keywords": [],

@@ -10,11 +10,14 @@ const dirData = path.join(__dirname, '../data');
 const dirResultsArchive = path.join(__dirname, '../data/results/archive');
 const dirCurrentResults = path.join(__dirname, '../data/results/current');
 const dirStatsReferee = path.join(__dirname, '../data/stats/referee');
+const dirStatsFouls = path.join(__dirname, '../data/stats/fouls');
 const dirConstants = path.join(__dirname, '../data/constants');
+
 
 // Load services
 const parse = require("./services");
 const utils = require("./utils");
+const champList = require('../constants/champ-list');
 
 
 const resultsMatches = async (season_results) => {
@@ -121,11 +124,11 @@ const createTeamsAbbr = async (champ) => {
 }
 
 //Create results for current season
-exports.createCurrentResults = async () => {
+const createCurrentResults = async () => {
   for(const champ of champs) {
     if (!champ.top) continue 
     
-    let results = [];
+    let result = [];
 
     console.time("result_data time"); 
     let season_results = await parse.result_data(champ, champ.season)
@@ -135,7 +138,7 @@ exports.createCurrentResults = async () => {
     let season_results_info = await resultsMatches(season_results)
     console.timeEnd("resultsMatches time");
 
-      results.push({
+      result.push({
         num: `${champ.season}`,
         season: `${champ.year}/${champ.year + 1}`,
         id: champ.id,
@@ -145,10 +148,12 @@ exports.createCurrentResults = async () => {
 
     console.log(`Object done for ${champ.league}`.blue)
       
-    fs.writeFileSync(path.join(dirCurrentResults, `${champ.id}.json`), JSON.stringify(results), (err) => {
-        if (err) reject(err);
-        console.log(`${champ.id}.json created`.green)
-    });   
+    try {
+      fs.writeFileSync(path.join(dirCurrentResults, `${champ.id}.json`), JSON.stringify(result));   
+      console.log(`${champ.id}.json created`.green)
+    } catch(err) {
+      console.error(err);
+    }
   }
 }
 
@@ -182,9 +187,9 @@ const createResultsArchive = async () =>{
 }
 
 //Create referees statistics for top champ
-exports.createStatsReferee = async () => {
-  let result=[];
+const createStatsReferee = async () => {
   for(const champ of champs) {
+    let result=[];
     if (!champ.top) continue 
 
     const resultsArchive = fs.readFileSync(path.join(dirResultsArchive, `${champ.id}.json`),"utf8");
@@ -195,12 +200,12 @@ exports.createStatsReferee = async () => {
 
     result = utils.combineRefereeInfo(refereeStats)
 
-    console.log(`Object refereeStats done for ${champ.league}`.green)
-
-    fs.writeFileSync(path.join(dirStatsReferee, `${champ.id}.json`), JSON.stringify(result), (err)=>{
-      if (err) reject(err);
+    try {
+      fs.writeFileSync(path.join(dirStatsReferee, `${champ.id}.json`), JSON.stringify(result));   
       console.log(`${champ.id}.json for ${champ.league} created`.blue)
-    });    
+    } catch(err) {
+      console.error(err);
+    }
   }
 }
 
@@ -304,16 +309,152 @@ const parseRefsInfo = async () => {
   
 }  
 
+
+//Create fouls statistics
+const createFoulsStats = async () => {
+  for(const champ of champs) {
+    let result,
+        teamsFouls = new Map(),
+        champResult=[];
+
+    if (!champ.top) continue 
+    
+    const currentResults = fs.readFileSync(path.join(dirCurrentResults, `${champ.id}.json`),"utf8");
+    
+    JSON.parse(currentResults)[0].matches.forEach(match=>{
+      let foulsMatch = parseInt(match.stats.fouls.match.homeTeam)+parseInt(match.stats.fouls.match.awayTeam)
+      let foulsHT = parseInt(match.stats.fouls.match.homeTeam)
+      let foulsAT = parseInt(match.stats.fouls.match.awayTeam)
+      
+      teamsFouls.has(match.homeTeam)? teamsFouls.set(match.homeTeam, utils.createFoulsObj(foulsMatch, foulsHT, foulsAT, teamsFouls.get(match.homeTeam))) : teamsFouls.set(match.homeTeam, utils.createFoulsObj(foulsMatch,foulsHT,foulsAT))
+      
+      teamsFouls.has(match.awayTeam)? teamsFouls.set(match.awayTeam, utils.createFoulsObj(foulsMatch, foulsAT, foulsHT, teamsFouls.get(match.awayTeam))) : teamsFouls.set(match.awayTeam, utils.createFoulsObj(foulsMatch,foulsHT,foulsAT))      
+    })
+
+    Object.entries(Object.fromEntries(teamsFouls)).forEach(([key, value])=>{
+      champResult.push({teamName:key,...utils.calculateFouls(value)})
+    })
+
+    result = champResult.sort((a,b)=> a.match.average < b.match.average? 1:-1)
+
+    try {
+      fs.writeFileSync(path.join(dirStatsFouls, `${champ.id}.json`), JSON.stringify(result));   
+      console.log(`${champ.id}.json for ${champ.league} created`.blue)
+    } catch(err) {
+      console.error(err);
+    }
+  }
+}
+
+const createCornersStats = async () => {
+  for(const champ of champs) {
+    let result,
+        teamsCorners = new Map(),
+        matchesTeams = new Map(),
+        champResult=[];
+
+    if (!champ.top) continue 
+    
+    const currentResults = fs.readFileSync(path.join(dirCurrentResults, `${champ.id}.json`),"utf8");
+
+    const matchesId = JSON.parse(currentResults)[0].matches.map(match=>match.matchId)
+    
+    JSON.parse(currentResults)[0].matches.forEach(match=>{
+      matchesTeams.set(match.matchId,[match.homeTeam, match.awayTeam])
+    })
+    
+    const corners_time = await parse.corners_stats(matchesId, matchesTeams)
+    
+    console.log("corners_time",corners_time);
+  }
+}
+
+
+const createMatchTimeLine = async () => {
+  for(const champ of champs) {
+    if (!champ.top) continue 
+
+    let matchesTeams = new Map()
+
+    const currentResults = fs.readFileSync(path.join(dirCurrentResults, `${champ.id}.json`),"utf8");
+    const matchesId = JSON.parse(currentResults)[0].matches.map(match=>match.matchId)
+    
+    JSON.parse(currentResults)[0].matches.forEach(match=>{
+      matchesTeams.set(match.matchId,[match.homeTeam, match.awayTeam])
+    })
+    
+    const time_line = await parse.matches_time_line(matchesId, matchesTeams)
+    const time_line_detailed = await parse.matches_time_line_detailed(matchesId, matchesTeams)
+    
+    const result = utils.verification_time_line(matchesId, time_line, time_line_detailed)
+
+    // console.log("time_line",time_line);
+    // console.log("time_line_detailed",time_line_detailed);
+
+    // fs.writeFileSync(path.join(dirData, `time_line.json`), JSON.stringify(time_line));   
+    // console.log(`time_line.json created`.blue)
+
+    // fs.writeFileSync(path.join(dirData, `time_line_detailed.json`), JSON.stringify(time_line_detailed));   
+    // console.log(`time_line_detailed.json created`.blue)
+  }
+}
+
+
+exports.parseTopChampExtraData = async ()=>{
+  try {
+    await createCurrentResults()
+    console.log(`createCurrentResults() done`.blue.inverse)
+    
+    await createStatsReferee()
+    console.log(`createStatsReferee() done`.blue.inverse)
+    
+    await createFoulsStats()
+    console.log(`createFoulsStats() done`.blue.inverse)
+  } catch(err) {
+    console.error(err);
+  }
+}
+
+//Create leagues teams for last 5 years
+const createLeaguesInfo = async () => {
+  let leagues=[];
+
+  for(const champ of champList) {
+    if (champ.region==="Europe") continue
+    let teams = await parse.league_team(champ)
+    leagues.push({...champ, teams})
+  }
+
+  try {
+    fs.writeFileSync(path.join(dirData, `leagues.json`), JSON.stringify(leagues));   
+    console.log(`leagues.json created`.blue)
+  } catch(err) {
+    console.error(err);
+  }
+}
+
 //Run once
 if (process.argv[2] === '-abbr') {createTeamsAbbr()}
 if (process.argv[2] === '-cra') {createResultsArchive()}
 if (process.argv[2] === '-prf') {parseRefsFoto()}
 if (process.argv[2] === '-pri') {parseRefsInfo()}
-
+if (process.argv[2] === '-cli') {createLeaguesInfo()}
 
 //Run everyday
 if (process.argv[2] === '-ccr') {createCurrentResults()}
 if (process.argv[2] === '-csr') {createStatsReferee()}
+if (process.argv[2] === '-cfs') {createFoulsStats()}
+
+//Dev
+if (process.argv[2] === '-ccs') {createCornersStats()}
+if (process.argv[2] === '-cmtl') {createMatchTimeLine()}
+
+
+
+
+
+//Run all everyday functions
+if (process.argv[2] === '-start') {start()}
 
 
 

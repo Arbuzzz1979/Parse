@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const dirData = path.join(__dirname, '../data');
 const dirStatsReferee = path.join(__dirname, '../data/stats/referee');
+const dirStatsFouls = path.join(__dirname, '../data/stats/fouls');
 
 
 // Load services
@@ -27,7 +28,8 @@ const Summary = require('../models/summary')
 const Matches = require('../models/matches')  
 const RefsStats = require('../models/refs-stats')
 const RefsSummary = require('../models/refs-summary')
-
+const FoulsStats = require('../models/fouls-stats')
+const FoulsSummary = require('../models/fouls-summary')
 
 const latestMatches = async (latest_scores) => {
   let statsObj = {};
@@ -208,6 +210,7 @@ exports.parsing_schedule = async () =>{
     await TodayMatches.deleteMany()
     await Fixtures.deleteMany()   
     await LatestScores.deleteMany()
+    await Matches.deleteMany() 
    
     if (today_matches_info.length > 0) await TodayMatches.create(today_matches_info)
     if (latest_scores_info.length > 0) await LatestScores.create(latest_scores_info) 
@@ -250,10 +253,16 @@ exports.parsing_results = async () =>{
     console.log(`Object done for ${champ.league}`.blue)
   }
   const matches_result_info = await latestMatches(results)
-  
+
   let summary_by_champ = matches_result_info.map(champ=>{
-    
+    let minusMatch=0;
     let champStats =  champ.matches.reduce((acc, match, idx)=>{
+      // Awarded matches ...
+      if (match.status!=="Finished") {
+        minusMatch = minusMatch + 1
+        return acc
+      }
+      
       const stats = utils.getMatchSummaryStats(match.stats)
       for (let key in stats) {
         acc[key] = acc[key]? acc[key] + stats[key] : stats[key]
@@ -262,7 +271,7 @@ exports.parsing_results = async () =>{
     },{}) 
 
     for (let key in champStats) {
-      champStats[key]=(champStats[key]/champ.matches.length).toFixed(2)
+      champStats[key]=(champStats[key]/(champ.matches.length-minusMatch)).toFixed(2)
     }
 
     return { 
@@ -295,7 +304,6 @@ exports.parsing_matches = async () => {
     console.timeEnd("parsing_league_matches time");
 
     try {
-      await Matches.deleteMany() 
       await Matches.create(matches_stats)
       console.log(`Data for ${champ.league} saved to Dadabase`.green.inverse)
     } catch (err) {
@@ -307,15 +315,12 @@ exports.parsing_matches = async () => {
 exports.parsing_referees = async () => {
   let refsStats=[];
 
-  // await createCurrentResults() 
-  // await createStatsReferee()
-
-
-  const refsStatsWithNextMatch = (refsStats, fixtures)=>{
+  const refsStatsWithNextMatch = (refsStats, fixtures, champ)=>{
     return refsStats.map(ref=>{
-      let nextMatch = fixtures.matches.filter(match=>match.referee.split(" (")[0] === ref.name)
-      if (!nextMatch) return ref
-      return {...ref, nextMatch: nextMatch[0]}
+      let nextMatch = fixtures.matches.filter(match=>match.referee.split(" (")[0] === ref.name).toObject()
+      if (!nextMatch[0]) return ref
+      
+      return {...ref, nextMatch: {...nextMatch[0], country: champ.country, champId: champ.id}}
     })
   }
 
@@ -330,7 +335,7 @@ exports.parsing_referees = async () => {
       country: champ.country,
       league: champ.league,
       num: champ.num,
-      refsStats: refsStatsWithNextMatch(champRefsStats, fixtures[0])
+      refsStats: refsStatsWithNextMatch(champRefsStats, fixtures[0], champ)
     })
   }    
 
@@ -347,3 +352,40 @@ exports.parsing_referees = async () => {
     console.error(err)
   }
 }
+
+exports.parsing_fouls = async () => {
+  let foulsStats=[];
+
+  for(const champ of champs) {
+    if (!champ.top) continue 
+    
+    const champFoulsStats = JSON.parse(
+      fs.readFileSync(path.join(dirStatsFouls, `${champ.id}.json`), 'utf-8'))
+
+    foulsStats.push({
+      id: champ.id,
+      country: champ.country,
+      league: champ.league,
+      num: champ.num,
+      foulsStats: champFoulsStats
+    })
+  }    
+
+  const summary = utils.createFoulsSummary(foulsStats)
+
+  // fs.writeFileSync(path.join(dirStatsFouls, `foulsStats.json`), JSON.stringify(foulsStats));   
+
+  try {
+    await FoulsStats.deleteMany()
+    await FoulsSummary.deleteMany()
+    await FoulsStats.create(foulsStats)
+    await FoulsSummary.create(summary)
+    console.log('Fouls Statistics Data Saved'.green.inverse)
+    // process.exit()
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+
+if (process.argv[2] === '-dev') {parsing_fouls()}

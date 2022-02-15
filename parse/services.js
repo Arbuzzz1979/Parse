@@ -241,8 +241,7 @@ function getDetailedStats(lastMatchesId) {
 
 function getMatchesResult(champ) {
   return new Promise((resolve, reject) => {
-    let {num, id ,season} = champ
-
+    let {num, id , season} = champ
     // Array url for parsing
     let urls = [0,1,2,3].map(page => `${fetchData.url}tr_1_${num}_${id}_${season}_${page}_2_en_1`);
     
@@ -297,7 +296,91 @@ function getResultData(champ, season) {
   })
 }
 
+function getMatchesTimeLineDetailed(matchesId, matchesTeams) {
+  
+  return new Promise((resolve, reject) => {
+    let delay = 0; 
+    // Array requests with delay
+    let requests = matchesId.map(async id => {
+      delay += delayIncrement;
+      return new Promise(resolve => setTimeout(resolve, delay)).then(() =>
+        got(`${fetchData.url}df_lc_1_${id}`, fetchData.params))
+    })
+    
+    Promise.all([requests[0], requests[1]])
+      .then(responses => responses.map(res => res.body))
+      .then(data => {
+        let result = {};
+        data.forEach((d,idx) => {
+          let matchId = matchesId[idx]
+          result[matchId] = (d === "")? "no data" 
+                                             : utils.getTimeLineDetailed(d, matchesTeams.get(matchId),matchId); 
+        });
+        resolve(result);
+      });    
+  })
+}
+
+
+function getMatchesTimeLine(matchesId, matchesTeams) {
+  
+  return new Promise((resolve, reject) => {
+    let delay = 0; 
+    // Array requests with delay
+    let requests = matchesId.map(async id => {
+      delay += delayIncrement;
+      return new Promise(resolve => setTimeout(resolve, delay)).then(() =>
+        got(`${fetchData.url}df_sui_1_${id}`, fetchData.params))
+    })
+
+    Promise.all([requests[0], requests[1]])
+      .then(responses => responses.map(res => res.body))
+      .then(data => {
+        let result = {};
+        data.forEach((d,idx) => {
+          let matchId = matchesId[idx]
+          result[matchId] = (d === "")? "no data" 
+                                             : utils.getTimeLine(d, matchesTeams.get(matchId),matchId); 
+        });
+        resolve(result);
+      });    
+  })
+}
+
+function getLeagueTeams (champ) {
+  return new Promise((resolve,reject)=>{
+    let {num, id , season, year} = champ
+    // Array url for parsing
+    let urls = [...Array(6).keys()].map(n => `${fetchData.url}tr_1_${num}_${id}_${season-n}_1_2_en_1`);
+    // Array requests
+    let requests = urls.map((url) => got(`${url}`, fetchData.params));
+
+    Promise.all(requests)
+      .then(responses => responses.map(res => res.body))
+      .then(data => {
+        const standingId = utils.getStandingId(data,year)
+        let request = standingId.map(id => got(`${fetchData.url}to_${id}_1`, fetchData.params));
+        
+        Promise.all(request)
+        .then(responses => responses.map(res => res.body))
+        .then(data => {
+          let result=[]
+          data.forEach((d,idx) => {
+            let seasonYear = `${year-idx}/${year-idx+1}`
+            result.push({
+              season: seasonYear,
+              teams: utils.getTeamsName(d),
+              id: standingId[idx]
+            })
+          })
+         resolve(result);
+        })
+      });   
+  })
+}
+
 module.exports = {
+  league_team: async (champ) => await getLeagueTeams(champ),
   today_matches: async () => await getTodayMatches(),
   matches_result: async (champ) => await getMatchesResult(champ),
   fixtures_scores: async (ignoreId) => await getFixturesAndScores(ignoreId),
@@ -308,6 +391,9 @@ module.exports = {
   match_summary: async (lastMatchesId) => await getMatchSummary(lastMatchesId),
   base_stats_score_info: async (lastMatchesId) => await getBaseStatsAndScoreInfo(lastMatchesId),
   detailed_stats: async (lastMatchesId) => await getDetailedStats(lastMatchesId),
+  matches_time_line_detailed: async (matchesId, matchesTeams) => await getMatchesTimeLineDetailed(matchesId, matchesTeams),
+  matches_time_line: async (matchesId, matchesTeams) => await getMatchesTimeLine(matchesId, matchesTeams),
+  
   standings: async (champs) => {
     let stands=[];
     let filterChamps = champs.filter(champ=>champ.standings==="on")

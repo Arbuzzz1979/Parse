@@ -16,7 +16,8 @@ const RefsSummarySchema = new Schema({
       fouls: Number,
       yellowCards: Number,
       penalties: Number,
-      redCards: Number,  
+      redCards: Number,
+      nextMatchId: String,
     }      
   ]
 });

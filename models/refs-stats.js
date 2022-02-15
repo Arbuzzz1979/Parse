@@ -60,6 +60,8 @@ const RefsStatsSchema = new Schema({
       }],
       nextMatch: {
         matchId: String,
+        country: String,
+        champId: String,
         matchData: String,
         matchTime: String,
         timestamp: String,

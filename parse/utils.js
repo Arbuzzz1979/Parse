@@ -858,9 +858,343 @@ exports.createRefsSummary = (RefsStats) => {
           yellowCards: ref.average.yellowCards,
           penalties: ref.average.penalties,
           redCards: ref.average.redCards,
+          nextMatchId: ref.nextMatch? ref.nextMatch.matchId : "no info"
         }
       }))
     }
   })
 
 }
+
+
+
+///////////////////////////////////////////
+// Calculating teams fouls //
+///////////////////////////////////////////
+exports.calculateFouls = (fouls)=>{
+  let {match, team, opponent} = fouls
+  return {
+    match: {
+      min: Math.min(...match),
+      max: Math.max(...match),
+      matches: match.length,
+      total: match.reduce((a, b) => a + b, 0),
+      average: parseFloat((match.reduce((a, b) => a + b, 0) / match.length).toFixed(2)),
+      fouls: match,
+      last10:{
+        min: Math.min(...match.slice(-10)),
+        max: Math.max(...match.slice(-10)),            
+        total: match.slice(-10).reduce((a, b) => a + b, 0),
+        average: parseFloat((match.slice(-10).reduce((a, b) => a + b, 0) / 10).toFixed(2)),
+        fouls: match.slice(-10)
+      },          
+      last5:{
+        min: Math.min(...match.slice(-5)),
+        max: Math.max(...match.slice(-5)),              
+        total: match.slice(-5).reduce((a, b) => a + b, 0),
+        average: parseFloat((match.slice(-5).reduce((a, b) => a + b, 0) / 5).toFixed(2)),
+        fouls: match.slice(-5)
+      },
+      last3:{
+        min: Math.min(...match.slice(-3)),
+        max: Math.max(...match.slice(-3)),             
+        total: match.slice(-3).reduce((a, b) => a + b, 0),
+        average: parseFloat((match.slice(-3).reduce((a, b) => a + b, 0) / 3).toFixed(2)),
+        fouls: match.slice(-3)
+      }          
+    },
+    team: {
+      min: Math.min(...team),
+      max: Math.max(...team),
+      matches: team.length,
+      total: team.reduce((a, b) => a + b, 0),
+      average: parseFloat((team.reduce((a, b) => a + b, 0) / team.length).toFixed(2)),      
+      fouls: team,
+      last10:{
+        min: Math.min(...team.slice(-10)),
+        max: Math.max(...team.slice(-10)),            
+        total: team.slice(-10).reduce((a, b) => a + b, 0),
+        average: parseFloat((team.slice(-10).reduce((a, b) => a + b, 0) / 10).toFixed(2)),
+        fouls: team.slice(-10)
+      },          
+      last5:{
+        min: Math.min(...team.slice(-5)),
+        max: Math.max(...team.slice(-5)),              
+        total: team.slice(-5).reduce((a, b) => a + b, 0),
+        average: parseFloat((team.slice(-5).reduce((a, b) => a + b, 0) / 5).toFixed(2)),
+        fouls: team.slice(-5)
+      },
+      last3:{
+        min: Math.min(...team.slice(-3)),
+        max: Math.max(...team.slice(-3)),             
+        total: team.slice(-3).reduce((a, b) => a + b, 0),
+        average: parseFloat((team.slice(-3).reduce((a, b) => a + b, 0) / 3).toFixed(2)),
+        fouls: team.slice(-3)
+      }               
+    },
+    opponent: {
+      min: Math.min(...opponent),
+      max: Math.max(...opponent),
+      matches: opponent.length,
+      total: opponent.reduce((a, b) => a + b, 0),
+      average: parseFloat((opponent.reduce((a, b) => a + b, 0) / opponent.length).toFixed(2)),       
+      fouls: opponent,
+      last10:{
+        min: Math.min(...opponent.slice(-10)),
+        max: Math.max(...opponent.slice(-10)),            
+        total: opponent.slice(-10).reduce((a, b) => a + b, 0),
+        average: parseFloat((opponent.slice(-10).reduce((a, b) => a + b, 0) / 10).toFixed(2)),
+        fouls: opponent.slice(-10)
+      },          
+      last5:{
+        min: Math.min(...opponent.slice(-5)),
+        max: Math.max(...opponent.slice(-5)),              
+        total: opponent.slice(-5).reduce((a, b) => a + b, 0),
+        average: parseFloat((opponent.slice(-5).reduce((a, b) => a + b, 0) / 5).toFixed(2)),
+        fouls: opponent.slice(-5)
+      },
+      last3:{
+        min: Math.min(...opponent.slice(-3)),
+        max: Math.max(...opponent.slice(-3)),             
+        total: opponent.slice(-3).reduce((a, b) => a + b, 0),
+        average: parseFloat((opponent.slice(-3).reduce((a, b) => a + b, 0) / 3).toFixed(2)),
+        fouls: opponent.slice(-3)
+      }               
+    }               
+  }
+}
+
+exports.createFoulsObj = (
+  foulsMatch, 
+  foulsTeam, 
+  foulsOpponent,
+  ...fouls
+) => {
+  
+  if (!fouls.length) return { match: [foulsMatch], team: [foulsTeam],  opponent: [foulsOpponent] }
+  return {
+    match: [...fouls[0].match, foulsMatch],
+    team: [...fouls[0].team, foulsTeam],
+    opponent: [...fouls[0].opponent, foulsOpponent],
+  }
+}
+
+exports.createFoulsSummary = (FoulsStats) => {
+  // function sortRefStats(refStats) {
+  //   function order( a, b ) {
+  //     if ( a.countMatches < b.countMatches ) return 1;
+  //     if ( a.countMatches > b.countMatches ) return -1;
+  //     return 0;
+  //   }
+  //   return refStats.sort(order).filter(s=>s.countMatches > 9)
+  // }
+
+  return FoulsStats.map(champ=>{
+    return {
+      id: champ.id,
+      country: champ.country,
+      league: champ.league,
+      foulsStats: champ.foulsStats.map(foul=>{
+        return {
+          teamName: foul.teamName,
+          allMatches: {
+            match: foul.match.average,
+            team: foul.team.average,
+            opponent: foul.opponent.average,
+          },
+          last10: {
+            match: foul.match.last10.average,
+            team: foul.team.last10.average,
+            opponent: foul.opponent.last10.average,
+          },
+          last5: {
+            match: foul.match.last5.average,
+            team: foul.team.last5.average,
+            opponent: foul.opponent.last5.average,
+          },
+          last3: {
+            match: foul.match.last3.average,
+            team: foul.team.last3.average,
+            opponent: foul.opponent.last3.average,
+          },                    
+        }
+      })
+    }
+  })
+
+}
+
+
+//////////////////////////
+// Parsing corners detail stats //
+//////////////////////////
+exports.createCornersObj = (match, ...corners) => {
+
+  let cornersMatch = parseInt(match.stats.corners.match.homeTeam)
+                         + parseInt(match.stats.corners.match.awayTeam)
+  let cornersHT = parseInt(match.stats.corners.match.homeTeam)
+  let cornersAT = parseInt(match.stats.corners.match.awayTeam)
+
+  if (!corners.length) return { match: [cornersMatch], team: [cornersTeam],  opponent: [cornersOpponent] }
+  return {
+    match: [...corners[0].match, cornersMatch],
+    team: [...corners[0].team, cornersTeam],
+    opponent: [...corners[0].opponent, cornersOpponent],
+  }
+}
+
+
+
+//////////////////////////
+// Parsing Match TimeLine //
+//////////////////////////
+const objectFromDataRecords = (data) =>{
+  return Object.fromEntries(data.split("¬").map((r) => [r.split("÷")[0], r.split("÷")[1]]))
+}
+const halfScore = (data) =>{
+  let score = objectFromDataRecords(data)
+  return `${score.IG} - ${score.IH}`
+}
+
+const createHalfTimeLine = (record, teams)=>{
+  let evRecord = record.split("¬IE÷"),
+      evMinute = Object.fromEntries(evRecord[0].split("¬").map((r) => [r.split("÷")[0], r.split("÷")[1]])),
+      evInfo = '¬IK÷' + evRecord[1].split("¬IK÷")[1],
+      evName = Object.fromEntries(evInfo.split("¬").map((r) => [r.split("÷")[0], r.split("÷")[1]]))
+  return {
+      minute: evMinute.IB,
+      event: evName.IK,
+      team: (evMinute.IA === "1")? teams[0] : teams[1]
+    }
+}
+
+exports.getTimeLine = (data, teams, matchId) => {
+  //Split 1st half and 2nd half
+  const halfsData = data.split("~AC÷");
+
+  //Halfs score
+  const score = { 
+    firstHalf: halfScore(halfsData[0].slice(0,40)),
+    secondHalf: halfScore(halfsData[1].slice(0,40)),
+  }
+
+  //Filter events
+  const recordsData = halfsData.map(record => record.split("~III÷").filter(r => r.includes("¬IA÷")))
+  const eventsData = recordsData.map(record => record.filter(r => !r.includes("¬IK÷Substitution")))
+  const firstHalf = eventsData[0].map(record=> createHalfTimeLine(record, teams))
+  const secondHalf = eventsData[1].map(record=> createHalfTimeLine(record, teams))
+  return {
+    score,
+    timeLine: { firstHalf, secondHalf }
+  }
+};
+
+exports.getTimeLineDetailed = (data, teams, matchId) => {
+  
+  const timeLine = []
+  const deleteRecord = ['','injury','substitution']
+  const statsParser = data.split("¬~").filter(r=>r.includes("MD÷"))
+  const createTimeObject = statsParser.map(r=>{
+    return Object.fromEntries(r.split("¬").map((r) => [r.split("÷")[0], r.split("÷")[1]]))
+  })
+  
+  createTimeObject.reverse()
+    .filter(record=> !deleteRecord.some(d => record.MC===d))
+    .forEach(record=>{
+      if (record.MC==='whistle') {
+        timeLine.push({ minute: record.MB, exact: record.MK, event: record.MC})
+        return
+      }
+
+      let t1=record.MD.indexOf(teams[0])
+      let t2=record.MD.indexOf(teams[1])
+
+      if (t1!==-1 && t2!==-1) {
+        timeLine.push({
+          minute: record.MB,
+          exact: record.MK,
+          event: record.MC,
+          team: (t1<t2)? teams[0] : teams[1]
+        })
+        return
+      }
+      if (t1!==-1) timeLine.push({ minute: record.MB, exact: record.MK, event: record.MC,  team: teams[0]})
+      if (t2!==-1) timeLine.push({ minute: record.MB, exact: record.MK, event: record.MC,  team: teams[1]})
+
+    })
+
+    function posEndOfFirstHalf() {
+      let count=0
+      for(let i=0; i< timeLine.length; i++) {
+        if (timeLine[i].event==='whistle') count+=1
+        if (count > 2) return i
+      }
+    }
+    const pos = posEndOfFirstHalf()
+
+  return { timeLine: {
+            firstHalf: timeLine.slice(0,pos),
+            secondHalf: timeLine.slice(pos)
+          }}
+};
+
+exports.verification_time_line = (matchesId, time_line, time_line_detailed) => {
+  
+  
+  
+  const startCursor = (id)=>{
+    let tl_1stHalf = time_line[id]["timeLine"]["firstHalf"]
+    let tl_2ndHalf = time_line[id]["timeLine"]["secondHalf"]
+    let tld_1stHalf = time_line_detailed[id]["timeLine"]["firstHalf"]
+    let tld_2ndHalf = time_line_detailed[id]["timeLine"]["secondHalf"]
+    
+    function findPos(arr, minute) {
+      for(let i=0; i< arr.length; i++) {
+        if (arr[i]["minute"] === minute) return i
+      }
+    }
+
+    if (tl_1stHalf.length > 0) return findPos(tld_1stHalf, tl_1stHalf[0].minute)
+    
+  }
+
+  [matchesId[0],matchesId[1]].forEach(id=>{
+    let cursor1 = 0
+    let cursor2 = startCursor(id)
+    
+    console.log("cursor1", cursor1);
+    console.log("cursor2", cursor2);
+
+    // time_line[id]["timeLine"]["firstHalf"].map(record=>{
+    //   verification(record.minute)
+    // })
+
+    // time_line[id]["timeLine"]["firstHalf"]
+
+    console.log(time_line[id]["timeLine"]);
+  })
+  
+}
+
+
+//////////////////////////
+// Get standing id for last 5 season //
+//////////////////////////
+exports.getStandingId = (data, year) => {
+  const createObject = (d) => Object.fromEntries(d.split("~AA÷")[0]
+                                                  .split("~")[1]
+                                                  .split("¬")
+                                                  .map(r=>r.split("÷")))
+
+  return data.map((d,idx) => {
+    // let seasonYear = `${year-idx}/${year-idx+1}`
+    let obj = createObject(d)
+    return `${obj.ZE}_${obj.ZC}`
+  });
+}
+
+exports.getTeamsName = (data) => {
+  const records = data.split("¬").filter(r=>r.includes("TN÷"))
+  return records.map(r=>r.split("÷")[1])
+}
+
